@@ -1,23 +1,25 @@
 import express from 'express';
 import cors from 'cors';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import dotenv from "dotenv";
 import joi from 'joi';
 import bcrypt from "bcrypt";
 import {v4 as uuid} from 'uuid';
-dotenv.config();
+
+
 
 //Servidor
 const server = express();
 server.use(cors());
 server.use(express.json());
+dotenv.config()
 
 //Banco de dados
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
 let db;
 
 mongoClient.connect()
-    .then(() => db = mongoClient.db("Wallet-API"))
+    .then(() => db = mongoClient.db())
     .catch((err) => console.log(err))
 
 
@@ -51,6 +53,13 @@ server.post('/cadastro', async (req, res) => {
     }
 });
 
+server.get('/cadastro', async (req, res) => {
+    try {
+        const teste = await db.collection('cadastro').find().toArray();
+        res.send(teste)
+    } catch (err) { res.sendStatus(500) }
+})
+
 // LOGIN
 server.post('/login',async(req,res)=>{
     const {email,senha}= req.body;
@@ -71,27 +80,22 @@ server.post('/login',async(req,res)=>{
         const nao_cadastrado = await db.collection('cadastro').findOne({email});
         if (!nao_cadastrado) return res.status(404).send('Email não cadastrado')
 
-        console.log(bcrypt.compareSync(senha,nao_cadastrado.senha))
         if (!bcrypt.compareSync(senha,nao_cadastrado.senha)) return res.status(401).send('Senha incorreta!')
 
+        if (await db.collection('login').findOne({_id: new ObjectId(nao_cadastrado._id)})){
+            await db.collection('login').deleteOne({_id: new ObjectId(nao_cadastrado._id)})
+        }
+
         const token = uuid()
+
         await db.collection('login').insertOne({_id:nao_cadastrado._id,token})
-        res.status(200).send(token);
+        res.status(200).send({_id:nao_cadastrado._id, token, nome:nao_cadastrado.nome });
     }catch(err){
         return res.sendStatus(500)
     }
-
-
-
-
 })
 
-server.get('/cadastro', async (req, res) => {
-    try {
-        const teste = await db.collection('cadastro').find().toArray();
-        res.send(teste)
-    } catch (err) { res.sendStatus(500) }
-})
+
 //LIGAR SERVER
 const PORT = 5000;
 server.listen(PORT, () => console.log(`rodando na porta número ${PORT}`))
