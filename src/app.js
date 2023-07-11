@@ -5,8 +5,7 @@ import dotenv from "dotenv";
 import joi from 'joi';
 import bcrypt from "bcrypt";
 import { v4 as uuid } from 'uuid';
-
-
+import dayjs from 'dayjs';
 
 //Servidor
 const server = express();
@@ -103,14 +102,14 @@ server.post('/transacao', async (req, res) => {
         descricao: joi.string().required()
     })
 
-    const validation = trasacaoSchedule.validate({ tipo, valor, descricao }, { abortEarly: false });
+    const validation = trasacaoSchedule.validate({ tipo, valor, descricao}, { abortEarly: false });
 
     if (validation.error) {
         const errors = validation.error.details.map((details) => details.message);
         return res.status(422).send(errors)
     }
     try {
-        await db.collection('transacao').insertOne({ tipo, valor, descricao, token });
+        await db.collection('transacao').insertOne({ tipo, valor, descricao, token, date:dayjs(Date.now()).format('DD/MM') });
         res.sendStatus(200);
     }
     catch (err) {
@@ -119,13 +118,20 @@ server.post('/transacao', async (req, res) => {
 })
 
 server.get('/transacao', async (req, res) => {
+    const { authorization } = req.headers;
+
+    const token = authorization?.replace('Bearer ', ' ');
+    if (!token) res.sendStatus(401);
+
     try{
-        const tenta = await db.collection('transacao').find().toArray();
-        res.send(tenta)
+        const transacoes = await db.collection('transacao').find({token:token}).toArray();
+        res.send(transacoes)
     }catch(err){
         res.sendStatus(500)
     }
 })
+
+
 
 //LIGAR SERVER
 const PORT = 5000;
