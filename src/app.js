@@ -10,5 +10,5 @@ server.use(express.json());
 server.use(router);
 
 //LIGAR SERVER
-const PORT = 5000;
-server.listen(PORT, () => console.log(`rodando na porta número ${PORT}`))
+const port = process.env.PORT || 5000;
+server.listen(port, () => console.log(`rodando na porta número ${port}`))
